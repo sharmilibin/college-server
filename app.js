@@ -3,7 +3,7 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-
+var cors = require('cors');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var loginRouter = require('./routes/loginRouter');
@@ -17,8 +17,7 @@ app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
-
+app.use(cors({ credentials: true }));
 app.options('/*', function(req, res, next) {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
@@ -28,36 +27,51 @@ app.options('/*', function(req, res, next) {
   );
   res.send(200);
 });
+app.use(cookieParser('1234-56789-1234-sharmiLibin-xcxjcjhj'));
 
 function auth(req, res, next) {
-  var authHeader = req.headers.authorization;
-  console.log('Incoming request header ==>', req.headers);
-  console.log('Incoming Auth ==>', authHeader);
-  if (!authHeader) {
-    var err = new Error('you are not authenticated  Missing AuthHeader');
-    res.setHeader('WWW-authenticate', 'Basic');
-    err.status = 401;
-    next(err);
-    return;
-  }
-  console.log('checking split ===> ', authHeader.split(' ')[1]);
-  var auth = new Buffer.from(authHeader.split(' ')[1], 'base64')
-    .toString()
-    .split(':');
-  console.log(
-    'split =>',
-    new Buffer.from(authHeader.split(' ')[1], 'base64').toString()
-  );
-  var user = auth[0];
-  var password = auth[1];
-  console.log('print User ID and pwd ==>', user, password);
-  if (user === 'admin' && password === 'password') {
-    next();
+  console.log('Print the cookies', req.signedCookies.user);
+  if (!req.signedCookies.user) {
+    var authHeader = req.headers.authorization;
+    console.log('Incoming request header ==>', req.headers);
+    console.log('Incoming Auth ==>', authHeader);
+    if (!authHeader) {
+      var err = new Error('you are not authenticated  Missing AuthHeader');
+      res.setHeader('WWW-authenticate', 'Basic');
+      err.status = 401;
+      next(err);
+      return;
+    }
+    console.log('checking split ===> ', authHeader.split(' ')[1]);
+    var auth = new Buffer.from(authHeader.split(' ')[1], 'base64')
+      .toString()
+      .split(':');
+    console.log(
+      'split =>',
+      new Buffer.from(authHeader.split(' ')[1], 'base64').toString()
+    );
+    var user = auth[0];
+    var password = auth[1];
+
+    console.log('print User ID and pwd ==>', user, password);
+    if (user === 'admin' && password === 'password') {
+      res.cookie('user', 'admin', { signed: true });
+      next();
+    } else {
+      var err = new Error('You are not authenticated User ID , Password');
+      res.setHeader('WWW-authenticate', 'Basic');
+      err.status = 401;
+      next(err);
+    }
   } else {
-    var err = new Error('You are not authenticated User ID , Password');
-    res.setHeader('WWW-authenticate', 'Basic');
-    err.status = 401;
-    next(err);
+    console.log('in Else ===>', req.signedCookies.user);
+    if (req.signedCookies.user === 'admin') {
+      next();
+    } else {
+      var err = new Error('You are not authenticated');
+      err.status = 401;
+      next(err);
+    }
   }
 }
 app.use(auth);
