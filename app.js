@@ -7,6 +7,8 @@ var cors = require('cors');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var loginRouter = require('./routes/loginRouter');
+var session = require('express-session');
+var FileStore = require('session-file-store')(session);
 
 var app = express();
 
@@ -27,11 +29,18 @@ app.options('/*', function(req, res, next) {
   );
   res.send(200);
 });
-app.use(cookieParser('1234-56789-1234-sharmiLibin-xcxjcjhj'));
-
+app.use(
+  session({
+    name: 'session-id',
+    secret: '123-sharmi-123-libin',
+    saveUninitialized: 'false',
+    resave: 'false',
+    store: new FileStore()
+  })
+);
 function auth(req, res, next) {
-  console.log('Print the cookies', req.signedCookies.user);
-  if (!req.signedCookies.user) {
+  console.log('Print the session', req.session);
+  if (!req.session.user) {
     var authHeader = req.headers.authorization;
     console.log('Incoming request header ==>', req.headers);
     console.log('Incoming Auth ==>', authHeader);
@@ -55,7 +64,7 @@ function auth(req, res, next) {
 
     console.log('print User ID and pwd ==>', user, password);
     if (user === 'admin' && password === 'password') {
-      res.cookie('user', 'admin', { signed: true });
+      req.session.user = 'admin';
       next();
     } else {
       var err = new Error('You are not authenticated User ID , Password');
@@ -64,8 +73,8 @@ function auth(req, res, next) {
       next(err);
     }
   } else {
-    console.log('in Else ===>', req.signedCookies.user);
-    if (req.signedCookies.user === 'admin') {
+    console.log('in Else ===>', req.session.user);
+    if (req.session.user === 'admin') {
       next();
     } else {
       var err = new Error('You are not authenticated');
